@@ -35,7 +35,7 @@ instance Arbitrary EntryPoint where
   arbitrary = EntryPoint <$> arbitrary <*> arbitrary <*> arbitrary
 
 instance Arbitrary Manifest where
-  arbitrary = Manifest <$> arbitrary <*> arbitrary <*> arbitrary
+  arbitrary = Manifest <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 jsonTests :: TestTree
 jsonTests =

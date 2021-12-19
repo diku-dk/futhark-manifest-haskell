@@ -94,7 +94,9 @@ data Manifest = Manifest
     manifestTypes :: M.Map T.Text Type,
     -- | The compiler backend used to
     -- compile the program, e.g. @c@.
-    manifestBackend :: T.Text
+    manifestBackend :: T.Text,
+    -- | The version of the compiler used to compile the program.
+    manifestVersion :: T.Text
   }
   deriving (Eq, Ord, Show)
 
@@ -116,9 +118,10 @@ instance JSON.ToJSON OpaqueOps where
       ]
 
 instance JSON.ToJSON Manifest where
-  toJSON (Manifest entry_points types backend) =
+  toJSON (Manifest entry_points types backend version) =
     object
       [ ("backend", toJSON backend),
+        ("version", toJSON version),
         ( "entry_points",
           object $ map (bimap JSON.fromText onEntryPoint) $ M.toList entry_points
         ),
@@ -197,7 +200,11 @@ instance JSON.FromJSON Type where
 
 instance JSON.FromJSON Manifest where
   parseJSON = JSON.withObject "Manifest" $ \v ->
-    Manifest <$> v .: "entry_points" <*> v .: "types" <*> v .: "backend"
+    Manifest
+      <$> v .: "entry_points"
+      <*> v .: "types"
+      <*> v .: "backend"
+      <*> v .: "version"
 
 -- | Serialise a manifest to JSON.
 manifestToJSON :: Manifest -> T.Text
