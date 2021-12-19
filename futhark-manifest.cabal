@@ -9,11 +9,16 @@ description:        The Futhark compiler generates JSON manifest files that desc
 bug-reports:        https://github.com/diku-dk/futhark-manifest-haskell/issues
 
 license:            ISC
+license-file:       LICENSE
 author:             Troels Henriksen
 maintainer:         athas@sigkill.dk
 
 category:           Futhark
 extra-source-files: CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/diku-dk/futhark-manifest-haskell
 
 library
     exposed-modules:  Futhark.Manifest
