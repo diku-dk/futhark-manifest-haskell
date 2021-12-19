@@ -21,7 +21,7 @@ where
 
 import Control.Applicative
 import Control.Monad (guard)
-import Data.Aeson (ToJSON (..), object, (.:))
+import Data.Aeson (ToJSON (..), object, (.!=), (.:), (.:?))
 import qualified Data.Aeson as JSON
 import qualified Data.Aeson.Key as JSON
 import Data.Aeson.Text (encodeToLazyText)
@@ -204,7 +204,7 @@ instance JSON.FromJSON Manifest where
       <$> v .: "entry_points"
       <*> v .: "types"
       <*> v .: "backend"
-      <*> v .: "version"
+      <*> v .:? "version" .!= "" -- Temporary workaround for older manifests.
 
 -- | Serialise a manifest to JSON.
 manifestToJSON :: Manifest -> T.Text
