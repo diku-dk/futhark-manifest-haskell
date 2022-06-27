@@ -15,6 +15,12 @@ import Test.Tasty.QuickCheck
 instance Arbitrary ArrayOps where
   arbitrary = ArrayOps <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
+instance Arbitrary RecordField where
+  arbitrary = RecordField <$> arbitrary <*> arbitrary <*> arbitrary
+
+instance Arbitrary RecordOps where
+  arbitrary = RecordOps <$> arbitrary <*> arbitrary
+
 instance Arbitrary OpaqueOps where
   arbitrary = OpaqueOps <$> arbitrary <*> arbitrary <*> arbitrary
 
@@ -22,7 +28,7 @@ instance Arbitrary Type where
   arbitrary =
     oneof
       [ TypeArray <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary,
-        TypeOpaque <$> arbitrary <*> arbitrary
+        TypeOpaque <$> arbitrary <*> arbitrary <*> arbitrary
       ]
 
 instance Arbitrary Output where

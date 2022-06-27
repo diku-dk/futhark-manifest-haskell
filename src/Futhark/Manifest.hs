@@ -1,18 +1,34 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 
 -- | C manifest data structure and serialisation to JSON.
 --
 -- A manifest contains machine-readable information about the API of
 -- the compiled Futhark program.  Specifically which entry points are
 -- available, which types are exposed, and what their C names are.
+-- This module documentation is not intended as a full description of
+-- the Futhark C API - you will need to consult the Futhark User's
+-- Guide to understand most of the information here.
+--
+-- The type aliases are purely informative and do not actually enforce
+-- correct usage.  They are present only because most of the
+-- information here is ultimately just text.
 module Futhark.Manifest
-  ( Manifest (..),
+  ( -- * Type aliases
+    CFuncName,
+    CTypeName,
+    TypeName,
+
+    -- * Manifest
+    Manifest (..),
     Input (..),
     Output (..),
     EntryPoint (..),
     Type (..),
     ArrayOps (..),
+    RecordField (..),
+    RecordOps (..),
     OpaqueOps (..),
     manifestToJSON,
     manifestFromJSON,
@@ -28,28 +44,41 @@ import Data.Aeson.Text (encodeToLazyText)
 import Data.Bifunctor (bimap)
 import Data.ByteString.Builder (toLazyByteString)
 import qualified Data.Map as M
+import Data.Maybe (maybeToList)
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8Builder)
 import Data.Text.Lazy (toStrict)
 
+-- | The name of a C function.
+type CFuncName = T.Text
+
+-- | The name of a C type (often of the form @"struct foo*"@).
+type CTypeName = T.Text
+
+-- | The name of a Futhark-level type.  This may be an array type
+-- (without sizes, just empty brackets), a primitive type, or another
+-- string denoting an opaque type.  The latter must have a
+-- corresponding entry in 'manifestTypes'.
+type TypeName = T.Text
+
 -- | Manifest info for an entry point parameter.
 data Input = Input
   { inputName :: T.Text,
-    inputType :: T.Text,
+    inputType :: TypeName,
     inputUnique :: Bool
   }
   deriving (Eq, Ord, Show)
 
 -- | Manifest info for an entry point return value.
 data Output = Output
-  { outputType :: T.Text,
+  { outputType :: TypeName,
     outputUnique :: Bool
   }
   deriving (Eq, Ord, Show)
 
 -- | Manifest info for an entry point.
 data EntryPoint = EntryPoint
-  { entryPointCFun :: T.Text,
+  { entryPointCFun :: CFuncName,
     entryPointOutputs :: [Output],
     entryPointInputs :: [Input]
   }
@@ -58,19 +87,45 @@ data EntryPoint = EntryPoint
 -- | The names of the C functions implementing the operations on some
 -- array type.
 data ArrayOps = ArrayOps
-  { arrayFree :: T.Text,
-    arrayShape :: T.Text,
-    arrayValues :: T.Text,
-    arrayNew :: T.Text
+  { arrayFree :: CFuncName,
+    arrayShape :: CFuncName,
+    arrayValues :: CFuncName,
+    arrayNew :: CFuncName
+  }
+  deriving (Eq, Ord, Show)
+
+-- | Information about a record field.
+data RecordField = RecordField
+  { -- | The original name of the field.  This may be a name that is
+    -- not a valid C identifier.
+    recordFieldName :: T.Text,
+    -- | The type of the field.
+    recordFieldType :: TypeName,
+    -- | The name of the projection function.
+    recordFieldProject :: CFuncName
+  }
+  deriving (Eq, Ord, Show)
+
+-- | Some opaque types are records, from which we can extract fields,
+-- and also construct them from values for their fields.  Beyond that,
+-- they support the usual opaque operations.  These record facilities
+-- can be ignored if you wish, and the types treated as ordinary
+-- opaque types.
+data RecordOps = RecordOps
+  { -- | Note that the ordering of fields here is semantically
+    -- significant - it is also the order that the "new" function
+    -- expects.
+    recordFields :: [RecordField],
+    recordNew :: CFuncName
   }
   deriving (Eq, Ord, Show)
 
 -- | The names of the C functions implementing the operations on some
 -- opaque type.
 data OpaqueOps = OpaqueOps
-  { opaqueFree :: T.Text,
-    opaqueStore :: T.Text,
-    opaqueRestore :: T.Text
+  { opaqueFree :: CFuncName,
+    opaqueStore :: CFuncName,
+    opaqueRestore :: CFuncName
   }
   deriving (Eq, Ord, Show)
 
@@ -78,8 +133,8 @@ data OpaqueOps = OpaqueOps
 -- of the manifest for a program.
 data Type
   = -- | ctype, Futhark elemtype, rank.
-    TypeArray T.Text T.Text Int ArrayOps
-  | TypeOpaque T.Text OpaqueOps
+    TypeArray CTypeName TypeName Int ArrayOps
+  | TypeOpaque CTypeName OpaqueOps (Maybe RecordOps)
   deriving (Eq, Ord, Show)
 
 -- | A manifest for a compiled program.
@@ -91,7 +146,7 @@ data Manifest = Manifest
     -- at the C level.  Should not contain any of the primitive scalar
     -- types.  For array types, these have empty dimensions,
     -- e.g. @[]i32@.
-    manifestTypes :: M.Map T.Text Type,
+    manifestTypes :: M.Map TypeName Type,
     -- | The compiler backend used to
     -- compile the program, e.g. @c@.
     manifestBackend :: T.Text,
@@ -109,9 +164,24 @@ instance JSON.ToJSON ArrayOps where
         ("new", toJSON new)
       ]
 
+instance JSON.ToJSON RecordField where
+  toJSON (RecordField name typename project) =
+    object
+      [ ("name", toJSON name),
+        ("type", toJSON typename),
+        ("project", toJSON project)
+      ]
+
+instance JSON.ToJSON RecordOps where
+  toJSON (RecordOps fields new) =
+    object
+      [ ("fields", toJSON fields),
+        ("new", toJSON new)
+      ]
+
 instance JSON.ToJSON OpaqueOps where
   toJSON (OpaqueOps free store restore) =
-    object
+    object $
       [ ("free", toJSON free),
         ("store", toJSON store),
         ("restore", toJSON restore)
@@ -158,16 +228,25 @@ instance JSON.ToJSON Manifest where
             ("elemtype", toJSON et),
             ("ops", toJSON ops)
           ]
-      onType (TypeOpaque t ops) =
-        object
+      onType (TypeOpaque t ops record) =
+        object $
           [ ("kind", "opaque"),
             ("ctype", toJSON t),
             ("ops", toJSON ops)
           ]
+            ++ maybeToList (("record",) . toJSON <$> record)
 
 instance JSON.FromJSON ArrayOps where
   parseJSON = JSON.withObject "ArrayOps" $ \v ->
     ArrayOps <$> v .: "free" <*> v .: "shape" <*> v .: "values" <*> v .: "new"
+
+instance JSON.FromJSON RecordField where
+  parseJSON = JSON.withObject "RecordField" $ \v ->
+    RecordField <$> v .: "name" <*> v .: "type" <*> v .: "project"
+
+instance JSON.FromJSON RecordOps where
+  parseJSON = JSON.withObject "RecordOps" $ \v ->
+    RecordOps <$> v .: "fields" <*> v .: "new"
 
 instance JSON.FromJSON OpaqueOps where
   parseJSON = JSON.withObject "OpaqueOps" $ \v ->
@@ -190,13 +269,14 @@ instance JSON.FromJSON Type where
     where
       pArray ty = do
         guard . (== ("array" :: T.Text)) =<< (ty .: "kind")
-        TypeArray <$> ty .: "ctype"
+        TypeArray
+          <$> ty .: "ctype"
           <*> ty .: "elemtype"
           <*> ty .: "rank"
           <*> ty .: "ops"
       pOpaque ty = do
         guard . (== ("opaque" :: T.Text)) =<< (ty .: "kind")
-        TypeOpaque <$> ty .: "ctype" <*> ty .: "ops"
+        TypeOpaque <$> ty .: "ctype" <*> ty .: "ops" <*> ty .:? "record"
 
 instance JSON.FromJSON Manifest where
   parseJSON = JSON.withObject "Manifest" $ \v ->
