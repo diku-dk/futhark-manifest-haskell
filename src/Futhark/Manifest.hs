@@ -79,6 +79,7 @@ data Output = Output
 -- | Manifest info for an entry point.
 data EntryPoint = EntryPoint
   { entryPointCFun :: CFuncName,
+    entryPointTuningParams :: [T.Text],
     entryPointOutputs :: [Output],
     entryPointInputs :: [Input]
   }
@@ -200,9 +201,10 @@ instance JSON.ToJSON Manifest where
         )
       ]
     where
-      onEntryPoint (EntryPoint cfun outputs inputs) =
+      onEntryPoint (EntryPoint cfun tuning_params outputs inputs) =
         object
           [ ("cfun", toJSON cfun),
+            ("tuning_params", toJSON tuning_params),
             ("outputs", toJSON $ map onOutput outputs),
             ("inputs", toJSON $ map onInput inputs)
           ]
@@ -254,7 +256,11 @@ instance JSON.FromJSON OpaqueOps where
 
 instance JSON.FromJSON EntryPoint where
   parseJSON = JSON.withObject "EntryPoint" $ \v ->
-    EntryPoint <$> v .: "cfun" <*> v .: "outputs" <*> v .: "inputs"
+    EntryPoint
+      <$> v .: "cfun"
+      <*> v .: "tuning_params"
+      <*> v .: "outputs"
+      <*> v .: "inputs"
 
 instance JSON.FromJSON Output where
   parseJSON = JSON.withObject "Output" $ \v ->
