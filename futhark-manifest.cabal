@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               futhark-manifest
-version:            1.2.0.0
+version:            1.2.0.1
 
 synopsis:           Definition and serialisation instances for Futhark manifests.
 

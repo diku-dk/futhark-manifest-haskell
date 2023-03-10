@@ -38,7 +38,7 @@ instance Arbitrary Input where
   arbitrary = Input <$> arbitrary <*> arbitrary <*> arbitrary
 
 instance Arbitrary EntryPoint where
-  arbitrary = EntryPoint <$> arbitrary <*> arbitrary <*> arbitrary
+  arbitrary = EntryPoint <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 instance Arbitrary Manifest where
   arbitrary = Manifest <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
