@@ -21,6 +21,12 @@ instance Arbitrary RecordField where
 instance Arbitrary RecordOps where
   arbitrary = RecordOps <$> arbitrary <*> arbitrary
 
+instance Arbitrary SumVariant where
+  arbitrary = SumVariant <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+
+instance Arbitrary SumOps where
+  arbitrary = SumOps <$> arbitrary <*> arbitrary
+
 instance Arbitrary OpaqueOps where
   arbitrary = OpaqueOps <$> arbitrary <*> arbitrary <*> arbitrary
 
@@ -28,7 +34,7 @@ instance Arbitrary Type where
   arbitrary =
     oneof
       [ TypeArray <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary,
-        TypeOpaque <$> arbitrary <*> arbitrary <*> arbitrary
+        TypeOpaque <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
       ]
 
 instance Arbitrary Output where

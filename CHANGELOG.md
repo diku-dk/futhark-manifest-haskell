@@ -1,5 +1,12 @@
 # Revision history for futhark-manifest
 
+## 1.3.0.0
+
+* Added `SumOps` and `SumVariant`.
+
+* The `TypeOpaque` constructor now has an additional field of type
+  `SumOps`.
+
 ## 1.2.0.1 -- 2023-03-10
 
 * Fix test suite.

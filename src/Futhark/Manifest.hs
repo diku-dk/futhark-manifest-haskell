@@ -29,6 +29,8 @@ module Futhark.Manifest
     ArrayOps (..),
     RecordField (..),
     RecordOps (..),
+    SumVariant (..),
+    SumOps (..),
     OpaqueOps (..),
     manifestToJSON,
     manifestFromJSON,
@@ -121,6 +123,34 @@ data RecordOps = RecordOps
   }
   deriving (Eq, Ord, Show)
 
+-- | Information about a variant of a sum type.
+data SumVariant = SumVariant
+  { -- | The name of the constructor. This may be a name that is not a
+    -- valid C identifier.
+    sumVariantName :: T.Text,
+    -- | The payload of this variant; also corresponding to the
+    -- arguments of the constructor and destructor functions.
+    sumVariantPayload :: [TypeName],
+    sumVariantConstruct :: CFuncName,
+    -- | Note that despite the name, "destruction" does not entail
+    -- freeing the sum type value.
+    sumVariantDestruct :: CFuncName
+  }
+  deriving (Eq, Ord, Show)
+
+-- | Some opaque types are sum types, from which we can (try to)
+-- extract the payload of a constructor, as well as construct them
+-- from payloads. As with records, we can ignore these facilities and
+-- simply treat them as completely opaque.
+data SumOps = SumOps
+  { sumVariants :: [SumVariant],
+    -- | This function returns an integer that identifies which
+    -- variant a value is an instance of. This integer is a valid
+    -- index in 'sumVariants'.
+    sumVariant :: CFuncName
+  }
+  deriving (Eq, Ord, Show)
+
 -- | The names of the C functions implementing the operations on some
 -- opaque type.
 data OpaqueOps = OpaqueOps
@@ -130,12 +160,14 @@ data OpaqueOps = OpaqueOps
   }
   deriving (Eq, Ord, Show)
 
--- | Manifest info for a non-scalar type.  Scalar types are not part
--- of the manifest for a program.
+-- | Manifest info for a non-scalar type. Scalar types are not part of
+-- the manifest for a program. Although this representation allows a
+-- type to be both a a record and a sum type, this will never actually
+-- happen.
 data Type
   = -- | ctype, Futhark elemtype, rank.
     TypeArray CTypeName TypeName Int ArrayOps
-  | TypeOpaque CTypeName OpaqueOps (Maybe RecordOps)
+  | TypeOpaque CTypeName OpaqueOps (Maybe RecordOps) (Maybe SumOps)
   deriving (Eq, Ord, Show)
 
 -- | A manifest for a compiled program.
@@ -178,6 +210,22 @@ instance JSON.ToJSON RecordOps where
     object
       [ ("fields", toJSON fields),
         ("new", toJSON new)
+      ]
+
+instance JSON.ToJSON SumVariant where
+  toJSON (SumVariant name payload construct destruct) =
+    object
+      [ ("name", toJSON name),
+        ("payload", toJSON payload),
+        ("construct", toJSON construct),
+        ("destruct", toJSON destruct)
+      ]
+
+instance JSON.ToJSON SumOps where
+  toJSON (SumOps variants variant) =
+    object
+      [ ("variants", toJSON variants),
+        ("variant", toJSON variant)
       ]
 
 instance JSON.ToJSON OpaqueOps where
@@ -230,13 +278,14 @@ instance JSON.ToJSON Manifest where
             ("elemtype", toJSON et),
             ("ops", toJSON ops)
           ]
-      onType (TypeOpaque t ops record) =
+      onType (TypeOpaque t ops record sumops) =
         object $
           [ ("kind", "opaque"),
             ("ctype", toJSON t),
             ("ops", toJSON ops)
           ]
             ++ maybeToList (("record",) . toJSON <$> record)
+            ++ maybeToList (("sum",) . toJSON <$> sumops)
 
 instance JSON.FromJSON ArrayOps where
   parseJSON = JSON.withObject "ArrayOps" $ \v ->
@@ -249,6 +298,18 @@ instance JSON.FromJSON RecordField where
 instance JSON.FromJSON RecordOps where
   parseJSON = JSON.withObject "RecordOps" $ \v ->
     RecordOps <$> v .: "fields" <*> v .: "new"
+
+instance JSON.FromJSON SumVariant where
+  parseJSON = JSON.withObject "SumVariant" $ \v ->
+    SumVariant
+      <$> v .: "name"
+      <*> v .: "payload"
+      <*> v .: "construct"
+      <*> v .: "destruct"
+
+instance JSON.FromJSON SumOps where
+  parseJSON = JSON.withObject "SumOps" $ \v ->
+    SumOps <$> v .: "variants" <*> v .: "variant"
 
 instance JSON.FromJSON OpaqueOps where
   parseJSON = JSON.withObject "OpaqueOps" $ \v ->
@@ -282,7 +343,7 @@ instance JSON.FromJSON Type where
           <*> ty .: "ops"
       pOpaque ty = do
         guard . (== ("opaque" :: T.Text)) =<< (ty .: "kind")
-        TypeOpaque <$> ty .: "ctype" <*> ty .: "ops" <*> ty .:? "record"
+        TypeOpaque <$> ty .: "ctype" <*> ty .: "ops" <*> ty .:? "record" <*> ty .:? "sum"
 
 instance JSON.FromJSON Manifest where
   parseJSON = JSON.withObject "Manifest" $ \v ->
