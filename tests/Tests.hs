@@ -13,7 +13,7 @@ import Test.Tasty.QuickCheck
 -- for testing serialisation.
 
 instance Arbitrary ArrayOps where
-  arbitrary = ArrayOps <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+  arbitrary = ArrayOps <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 instance Arbitrary RecordField where
   arbitrary = RecordField <$> arbitrary <*> arbitrary <*> arbitrary

@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
@@ -94,7 +95,9 @@ data ArrayOps = ArrayOps
   { arrayFree :: CFuncName,
     arrayShape :: CFuncName,
     arrayValues :: CFuncName,
-    arrayNew :: CFuncName
+    arrayNew :: CFuncName,
+    arrayNewRaw :: CFuncName,
+    arrayValuesRaw :: CFuncName
   }
   deriving (Eq, Ord, Show)
 
@@ -190,12 +193,14 @@ data Manifest = Manifest
   deriving (Eq, Ord, Show)
 
 instance JSON.ToJSON ArrayOps where
-  toJSON (ArrayOps free shape values new) =
+  toJSON (ArrayOps {arrayFree, arrayShape, arrayValues, arrayNew, arrayNewRaw, arrayValuesRaw}) =
     object
-      [ ("free", toJSON free),
-        ("shape", toJSON shape),
-        ("values", toJSON values),
-        ("new", toJSON new)
+      [ ("free", toJSON arrayFree),
+        ("shape", toJSON arrayShape),
+        ("values", toJSON arrayValues),
+        ("new", toJSON arrayNew),
+        ("new_raw", toJSON arrayNewRaw),
+        ("values_raw", toJSON arrayValuesRaw)
       ]
 
 instance JSON.ToJSON RecordField where
@@ -290,7 +295,13 @@ instance JSON.ToJSON Manifest where
 
 instance JSON.FromJSON ArrayOps where
   parseJSON = JSON.withObject "ArrayOps" $ \v ->
-    ArrayOps <$> v .: "free" <*> v .: "shape" <*> v .: "values" <*> v .: "new"
+    ArrayOps
+      <$> v .: "free"
+      <*> v .: "shape"
+      <*> v .: "values"
+      <*> v .: "new"
+      <*> v .: "new_raw"
+      <*> v .: "values_raw"
 
 instance JSON.FromJSON RecordField where
   parseJSON = JSON.withObject "RecordField" $ \v ->

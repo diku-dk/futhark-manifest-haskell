@@ -1,5 +1,9 @@
 # Revision history for futhark-manifest
 
+## 1.4.0.0
+
+* Added `arrayNewRaw` and `arrayRaw`.
+
 ## 1.3.0.0
 
 * Added `SumOps` and `SumVariant`.
