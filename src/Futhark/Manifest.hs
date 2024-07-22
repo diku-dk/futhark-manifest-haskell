@@ -33,6 +33,9 @@ module Futhark.Manifest
     RecordOps (..),
     SumVariant (..),
     SumOps (..),
+    OpaqueArrayOps (..),
+    RecordArrayOps (..),
+    OpaqueExtraOps (..),
     OpaqueOps (..),
     manifestToJSON,
     manifestFromJSON,
@@ -48,7 +51,6 @@ import Data.Aeson.Text (encodeToLazyText)
 import Data.Bifunctor (bimap)
 import Data.ByteString.Builder (toLazyByteString)
 import qualified Data.Map as M
-import Data.Maybe (maybeToList)
 import qualified Data.Text as T
 import Data.Text.Encoding (encodeUtf8Builder)
 import Data.Text.Lazy (toStrict)
@@ -97,11 +99,13 @@ data ArrayOps = ArrayOps
     arrayValues :: CFuncName,
     arrayNew :: CFuncName,
     arrayNewRaw :: CFuncName,
-    arrayValuesRaw :: CFuncName
+    arrayValuesRaw :: CFuncName,
+    arrayIndex :: CFuncName
   }
   deriving (Eq, Ord, Show)
 
--- | Information about a record field.
+-- | Information about a record field. Also used for fields of record
+-- arrays; see 'RecordArrayOps'.
 data RecordField = RecordField
   { -- | The original name of the field.  This may be a name that is
     -- not a valid C identifier.
@@ -155,6 +159,40 @@ data SumOps = SumOps
   }
   deriving (Eq, Ord, Show)
 
+-- | Some opaque types are arrays of opaque types. These still support
+-- some array-like operations, but their types are somewhat different.
+-- Note that arrays of primitives are 'TypeArray's, and arrays of
+-- records support 'RecordArrayOps'.
+data OpaqueArrayOps = OpaqueArrayOps
+  { opaqueArrayRank :: Int,
+    opaqueArrayElemType :: TypeName,
+    opaqueArrayIndex :: CFuncName,
+    opaqueArrayShape :: CFuncName
+  }
+  deriving (Eq, Ord, Show)
+
+-- | Some opaque types are arrays of records. The 'RecordField's here
+-- will contain array types, and the projection functions will
+-- retrieve arrays.
+data RecordArrayOps = RecordArrayOps
+  { recordArrayRank :: Int,
+    recordArrayElemType :: TypeName,
+    recordArrayFields :: [RecordField],
+    recordArrayZip :: CFuncName,
+    recordArrayIndex :: CFuncName,
+    recordArrayShape :: CFuncName
+  }
+  deriving (Eq, Ord, Show)
+
+-- | Some opaque types have a known structure, which allows additional
+-- operations.
+data OpaqueExtraOps
+  = OpaqueRecord RecordOps
+  | OpaqueSum SumOps
+  | OpaqueArray OpaqueArrayOps
+  | OpaqueRecordArray RecordArrayOps
+  deriving (Eq, Ord, Show)
+
 -- | The names of the C functions implementing the operations on some
 -- opaque type.
 data OpaqueOps = OpaqueOps
@@ -171,7 +209,7 @@ data OpaqueOps = OpaqueOps
 data Type
   = -- | ctype, Futhark elemtype, rank.
     TypeArray CTypeName TypeName Int ArrayOps
-  | TypeOpaque CTypeName OpaqueOps (Maybe RecordOps) (Maybe SumOps)
+  | TypeOpaque CTypeName OpaqueOps (Maybe OpaqueExtraOps)
   deriving (Eq, Ord, Show)
 
 -- | A manifest for a compiled program.
@@ -193,14 +231,15 @@ data Manifest = Manifest
   deriving (Eq, Ord, Show)
 
 instance JSON.ToJSON ArrayOps where
-  toJSON (ArrayOps {arrayFree, arrayShape, arrayValues, arrayNew, arrayNewRaw, arrayValuesRaw}) =
+  toJSON (ArrayOps {arrayFree, arrayShape, arrayValues, arrayNew, arrayNewRaw, arrayValuesRaw, arrayIndex}) =
     object
       [ ("free", toJSON arrayFree),
         ("shape", toJSON arrayShape),
         ("values", toJSON arrayValues),
         ("new", toJSON arrayNew),
         ("new_raw", toJSON arrayNewRaw),
-        ("values_raw", toJSON arrayValuesRaw)
+        ("values_raw", toJSON arrayValuesRaw),
+        ("index", toJSON arrayIndex)
       ]
 
 instance JSON.ToJSON RecordField where
@@ -232,6 +271,26 @@ instance JSON.ToJSON SumOps where
     object
       [ ("variants", toJSON variants),
         ("variant", toJSON variant)
+      ]
+
+instance JSON.ToJSON OpaqueArrayOps where
+  toJSON (OpaqueArrayOps rank elemtype index shape) =
+    object
+      [ ("rank", toJSON rank),
+        ("elemtype", toJSON elemtype),
+        ("index", toJSON index),
+        ("shape", toJSON shape)
+      ]
+
+instance JSON.ToJSON RecordArrayOps where
+  toJSON (RecordArrayOps rank elemtype fields zip_f index shape) =
+    object
+      [ ("rank", toJSON rank),
+        ("elemtype", toJSON elemtype),
+        ("fields", toJSON fields),
+        ("zip", toJSON zip_f),
+        ("index", toJSON index),
+        ("shape", toJSON shape)
       ]
 
 instance JSON.ToJSON OpaqueOps where
@@ -284,14 +343,22 @@ instance JSON.ToJSON Manifest where
             ("elemtype", toJSON et),
             ("ops", toJSON ops)
           ]
-      onType (TypeOpaque t ops record sumops) =
+      onType (TypeOpaque t ops extra_ops) =
         object $
           [ ("kind", "opaque"),
             ("ctype", toJSON t),
             ("ops", toJSON ops)
           ]
-            ++ maybeToList (("record",) . toJSON <$> record)
-            ++ maybeToList (("sum",) . toJSON <$> sumops)
+            ++ case extra_ops of
+              Nothing -> []
+              Just (OpaqueRecord recordops) ->
+                [("record", toJSON recordops)]
+              Just (OpaqueSum sumops) ->
+                [("sum", toJSON sumops)]
+              Just (OpaqueArray arrayops) ->
+                [("opaque_array", toJSON arrayops)]
+              Just (OpaqueRecordArray arrayops) ->
+                [("record_array", toJSON arrayops)]
 
 instance JSON.FromJSON ArrayOps where
   parseJSON = JSON.withObject "ArrayOps" $ \v ->
@@ -302,6 +369,7 @@ instance JSON.FromJSON ArrayOps where
       <*> v .: "new"
       <*> v .: "new_raw"
       <*> v .: "values_raw"
+      <*> v .: "index"
 
 instance JSON.FromJSON RecordField where
   parseJSON = JSON.withObject "RecordField" $ \v ->
@@ -323,9 +391,30 @@ instance JSON.FromJSON SumOps where
   parseJSON = JSON.withObject "SumOps" $ \v ->
     SumOps <$> v .: "variants" <*> v .: "variant"
 
+instance JSON.FromJSON OpaqueArrayOps where
+  parseJSON = JSON.withObject "OpaqueArrayOps" $ \v ->
+    OpaqueArrayOps
+      <$> v .: "rank"
+      <*> v .: "elemtype"
+      <*> v .: "index"
+      <*> v .: "shape"
+
+instance JSON.FromJSON RecordArrayOps where
+  parseJSON = JSON.withObject "RecordArrayOps" $ \v ->
+    RecordArrayOps
+      <$> v .: "rank"
+      <*> v .: "elemtype"
+      <*> v .: "fields"
+      <*> v .: "zip"
+      <*> v .: "index"
+      <*> v .: "shape"
+
 instance JSON.FromJSON OpaqueOps where
   parseJSON = JSON.withObject "OpaqueOps" $ \v ->
-    OpaqueOps <$> v .: "free" <*> v .: "store" <*> v .: "restore"
+    OpaqueOps
+      <$> v .: "free"
+      <*> v .: "store"
+      <*> v .: "restore"
 
 instance JSON.FromJSON EntryPoint where
   parseJSON = JSON.withObject "EntryPoint" $ \v ->
@@ -355,7 +444,21 @@ instance JSON.FromJSON Type where
           <*> ty .: "ops"
       pOpaque ty = do
         guard . (== ("opaque" :: T.Text)) =<< (ty .: "kind")
-        TypeOpaque <$> ty .: "ctype" <*> ty .: "ops" <*> ty .:? "record" <*> ty .:? "sum"
+        TypeOpaque
+          <$> ty .: "ctype"
+          <*> ty .: "ops"
+          <*> ( f
+                  <$> ty .:? "record"
+                  <*> ty .:? "sum"
+                  <*> ty .:? "opaque_array"
+                  <*> ty .:? "record_array"
+              )
+        where
+          f (Just x) _ _ _ = Just (OpaqueRecord x)
+          f _ (Just x) _ _ = Just (OpaqueSum x)
+          f _ _ (Just x) _ = Just (OpaqueArray x)
+          f _ _ _ (Just x) = Just (OpaqueRecordArray x)
+          f _ _ _ _ = Nothing
 
 instance JSON.FromJSON Manifest where
   parseJSON = JSON.withObject "Manifest" $ \v ->

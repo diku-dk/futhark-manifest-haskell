@@ -13,7 +13,15 @@ import Test.Tasty.QuickCheck
 -- for testing serialisation.
 
 instance Arbitrary ArrayOps where
-  arbitrary = ArrayOps <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+  arbitrary =
+    ArrayOps
+      <$> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
 
 instance Arbitrary RecordField where
   arbitrary = RecordField <$> arbitrary <*> arbitrary <*> arbitrary
@@ -27,6 +35,33 @@ instance Arbitrary SumVariant where
 instance Arbitrary SumOps where
   arbitrary = SumOps <$> arbitrary <*> arbitrary
 
+instance Arbitrary OpaqueArrayOps where
+  arbitrary =
+    OpaqueArrayOps
+      <$> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+
+instance Arbitrary RecordArrayOps where
+  arbitrary =
+    RecordArrayOps
+      <$> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+
+instance Arbitrary OpaqueExtraOps where
+  arbitrary =
+    oneof
+      [ OpaqueRecord <$> arbitrary,
+        OpaqueSum <$> arbitrary,
+        OpaqueArray <$> arbitrary,
+        OpaqueRecordArray <$> arbitrary
+      ]
+
 instance Arbitrary OpaqueOps where
   arbitrary = OpaqueOps <$> arbitrary <*> arbitrary <*> arbitrary
 
@@ -34,7 +69,7 @@ instance Arbitrary Type where
   arbitrary =
     oneof
       [ TypeArray <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary,
-        TypeOpaque <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+        TypeOpaque <$> arbitrary <*> arbitrary <*> arbitrary
       ]
 
 instance Arbitrary Output where

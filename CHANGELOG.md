@@ -1,5 +1,14 @@
 # Revision history for futhark-manifest
 
+## 1.5.0.0
+
+* Adding record arrays and opaque arrays.
+
+* Added array indexing.
+
+* Slight refactoring to emphasize that can opaque cannot be both e.g.
+  a sum type and a record.
+
 ## 1.4.0.0
 
 * Added `arrayNewRaw` and `arrayRaw`.
