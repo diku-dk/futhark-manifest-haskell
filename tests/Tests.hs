@@ -42,11 +42,15 @@ instance Arbitrary OpaqueArrayOps where
       <*> arbitrary
       <*> arbitrary
       <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
 
 instance Arbitrary RecordArrayOps where
   arbitrary =
     RecordArrayOps
       <$> arbitrary
+      <*> arbitrary
+      <*> arbitrary
       <*> arbitrary
       <*> arbitrary
       <*> arbitrary

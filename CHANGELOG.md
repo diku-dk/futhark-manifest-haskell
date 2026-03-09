@@ -1,5 +1,11 @@
 # Revision history for futhark-manifest
 
+## 1.6.0.0
+
+* Added `opaqueArrayNew` and `recordArrayNew`.
+
+* Added `opaqueArraySet` and `recordArraySet`.
+
 ## 1.5.0.0
 
 * Adding record arrays and opaque arrays.

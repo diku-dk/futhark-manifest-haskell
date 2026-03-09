@@ -167,7 +167,9 @@ data OpaqueArrayOps = OpaqueArrayOps
   { opaqueArrayRank :: Int,
     opaqueArrayElemType :: TypeName,
     opaqueArrayIndex :: CFuncName,
-    opaqueArrayShape :: CFuncName
+    opaqueArrayShape :: CFuncName,
+    opaqueArrayNew :: CFuncName,
+    opaqueArraySet :: CFuncName
   }
   deriving (Eq, Ord, Show)
 
@@ -180,7 +182,9 @@ data RecordArrayOps = RecordArrayOps
     recordArrayFields :: [RecordField],
     recordArrayZip :: CFuncName,
     recordArrayIndex :: CFuncName,
-    recordArrayShape :: CFuncName
+    recordArrayShape :: CFuncName,
+    recordArrayNew :: CFuncName,
+    recordArraySet :: CFuncName
   }
   deriving (Eq, Ord, Show)
 
@@ -274,23 +278,27 @@ instance JSON.ToJSON SumOps where
       ]
 
 instance JSON.ToJSON OpaqueArrayOps where
-  toJSON (OpaqueArrayOps rank elemtype index shape) =
+  toJSON (OpaqueArrayOps rank elemtype index shape new set) =
     object
       [ ("rank", toJSON rank),
         ("elemtype", toJSON elemtype),
         ("index", toJSON index),
-        ("shape", toJSON shape)
+        ("shape", toJSON shape),
+        ("new", toJSON new),
+        ("set", toJSON set)
       ]
 
 instance JSON.ToJSON RecordArrayOps where
-  toJSON (RecordArrayOps rank elemtype fields zip_f index shape) =
+  toJSON (RecordArrayOps rank elemtype fields zip_f index shape new set) =
     object
       [ ("rank", toJSON rank),
         ("elemtype", toJSON elemtype),
         ("fields", toJSON fields),
         ("zip", toJSON zip_f),
         ("index", toJSON index),
-        ("shape", toJSON shape)
+        ("shape", toJSON shape),
+        ("new", toJSON new),
+        ("set", toJSON set)
       ]
 
 instance JSON.ToJSON OpaqueOps where
@@ -398,6 +406,8 @@ instance JSON.FromJSON OpaqueArrayOps where
       <*> v .: "elemtype"
       <*> v .: "index"
       <*> v .: "shape"
+      <*> v .: "new"
+      <*> v .: "set"
 
 instance JSON.FromJSON RecordArrayOps where
   parseJSON = JSON.withObject "RecordArrayOps" $ \v ->
@@ -408,6 +418,8 @@ instance JSON.FromJSON RecordArrayOps where
       <*> v .: "zip"
       <*> v .: "index"
       <*> v .: "shape"
+      <*> v .: "new"
+      <*> v .: "set"
 
 instance JSON.FromJSON OpaqueOps where
   parseJSON = JSON.withObject "OpaqueOps" $ \v ->
