@@ -1,5 +1,9 @@
 # Revision history for futhark-manifest
 
+## 1.7.0.0
+
+* Added `entryPointAttrs`.
+
 ## 1.6.0.0
 
 * Added `opaqueArrayNew` and `recordArrayNew`.

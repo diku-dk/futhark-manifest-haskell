@@ -87,7 +87,8 @@ data EntryPoint = EntryPoint
   { entryPointCFun :: CFuncName,
     entryPointTuningParams :: [T.Text],
     entryPointOutputs :: [Output],
-    entryPointInputs :: [Input]
+    entryPointInputs :: [Input],
+    entryPointAttrs :: [T.Text]
   }
   deriving (Eq, Ord, Show)
 
@@ -322,12 +323,13 @@ instance JSON.ToJSON Manifest where
         )
       ]
     where
-      onEntryPoint (EntryPoint cfun tuning_params outputs inputs) =
+      onEntryPoint (EntryPoint cfun tuning_params outputs inputs attrs) =
         object
           [ ("cfun", toJSON cfun),
             ("tuning_params", toJSON tuning_params),
             ("outputs", toJSON $ map onOutput outputs),
-            ("inputs", toJSON $ map onInput inputs)
+            ("inputs", toJSON $ map onInput inputs),
+            ("attributes", toJSON attrs)
           ]
 
       onOutput (Output t u) =
@@ -435,6 +437,7 @@ instance JSON.FromJSON EntryPoint where
       <*> v .: "tuning_params"
       <*> v .: "outputs"
       <*> v .: "inputs"
+      <*> v .: "attributes"
 
 instance JSON.FromJSON Output where
   parseJSON = JSON.withObject "Output" $ \v ->
