@@ -1,5 +1,9 @@
 # Revision history for futhark-manifest
 
+## 1.8.0.0
+
+Replaced `entryPointOutputs` with `entryPointOutput`.
+
 ## 1.7.0.0
 
 * Added `entryPointAttrs`.
