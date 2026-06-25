@@ -1,8 +1,16 @@
 # Revision history for futhark-manifest
 
+## 1.9.0.0
+
+* New type `Doc` for representing documentation comments.
+
+* `EntryPoint` has a new field: `entryPointDoc` of type `Doc`.
+
+* `TypeOpaque` has a new payload of type `Doc`.
+
 ## 1.8.0.0
 
-Replaced `entryPointOutputs` with `entryPointOutput`.
+* Replaced `entryPointOutputs` with `entryPointOutput`.
 
 ## 1.7.0.0
 

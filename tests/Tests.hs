@@ -73,7 +73,7 @@ instance Arbitrary Type where
   arbitrary =
     oneof
       [ TypeArray <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary,
-        TypeOpaque <$> arbitrary <*> arbitrary <*> arbitrary
+        TypeOpaque <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
       ]
 
 instance Arbitrary Output where
@@ -83,7 +83,14 @@ instance Arbitrary Input where
   arbitrary = Input <$> arbitrary <*> arbitrary <*> arbitrary
 
 instance Arbitrary EntryPoint where
-  arbitrary = EntryPoint <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+  arbitrary =
+    EntryPoint
+      <$> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
 
 instance Arbitrary Manifest where
   arbitrary = Manifest <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary

@@ -21,6 +21,7 @@ module Futhark.Manifest
     CFuncName,
     CTypeName,
     TypeName,
+    Doc,
 
     -- * Manifest
     Manifest (..),
@@ -67,6 +68,9 @@ type CTypeName = T.Text
 -- corresponding entry in 'manifestTypes'.
 type TypeName = T.Text
 
+-- | A optional documentation string, taken from the original Futhark program.a
+type Doc = Maybe T.Text
+
 -- | Manifest info for an entry point parameter.
 data Input = Input
   { inputName :: T.Text,
@@ -88,7 +92,8 @@ data EntryPoint = EntryPoint
     entryPointTuningParams :: [T.Text],
     entryPointOutput :: Output,
     entryPointInputs :: [Input],
-    entryPointAttrs :: [T.Text]
+    entryPointAttrs :: [T.Text],
+    entryPointDoc :: Doc
   }
   deriving (Eq, Ord, Show)
 
@@ -210,11 +215,11 @@ data OpaqueOps = OpaqueOps
 -- | Manifest info for a non-scalar type. Scalar types are not part of
 -- the manifest for a program. Although this representation allows a
 -- type to be both a a record and a sum type, this will never actually
--- happen.
+-- happen. An opaque type is associated with a documentation comment.
 data Type
   = -- | ctype, Futhark elemtype, rank.
     TypeArray CTypeName TypeName Int ArrayOps
-  | TypeOpaque CTypeName OpaqueOps (Maybe OpaqueExtraOps)
+  | TypeOpaque CTypeName OpaqueOps (Maybe OpaqueExtraOps) Doc
   deriving (Eq, Ord, Show)
 
 -- | A manifest for a compiled program.
@@ -323,14 +328,15 @@ instance JSON.ToJSON Manifest where
         )
       ]
     where
-      onEntryPoint (EntryPoint cfun tuning_params output inputs attrs) =
-        object
+      onEntryPoint (EntryPoint cfun tuning_params output inputs attrs doc) =
+        object $
           [ ("cfun", toJSON cfun),
             ("tuning_params", toJSON tuning_params),
             ("output", toJSON $ onOutput output),
             ("inputs", toJSON $ map onInput inputs),
             ("attributes", toJSON attrs)
           ]
+            ++ [("doc", toJSON doc') | Just doc' <- [doc]]
 
       onOutput (Output t u) =
         object
@@ -353,12 +359,13 @@ instance JSON.ToJSON Manifest where
             ("elemtype", toJSON et),
             ("ops", toJSON ops)
           ]
-      onType (TypeOpaque t ops extra_ops) =
+      onType (TypeOpaque t ops extra_ops doc) =
         object $
           [ ("kind", "opaque"),
             ("ctype", toJSON t),
             ("ops", toJSON ops)
           ]
+            ++ [("doc", toJSON doc') | Just doc' <- [doc]]
             ++ case extra_ops of
               Nothing -> []
               Just (OpaqueRecord recordops) ->
@@ -438,6 +445,7 @@ instance JSON.FromJSON EntryPoint where
       <*> v .: "output"
       <*> v .: "inputs"
       <*> v .: "attributes"
+      <*> v .:? "doc"
 
 instance JSON.FromJSON Output where
   parseJSON = JSON.withObject "Output" $ \v ->
@@ -468,6 +476,7 @@ instance JSON.FromJSON Type where
                   <*> ty .:? "opaque_array"
                   <*> ty .:? "record_array"
               )
+          <*> ty .:? "doc"
         where
           f (Just x) _ _ _ = Just (OpaqueRecord x)
           f _ (Just x) _ _ = Just (OpaqueSum x)
