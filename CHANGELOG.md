@@ -1,5 +1,14 @@
 # Revision history for futhark-manifest
 
+## 1.10.0.0
+
+* Replaced `inputUnique` with `inputConsumed`.
+
+* Replaced `outputUnique` with `outputFresh`.
+
+* Updated for the new manifest format in the next version of Futhark (but with
+  backwards compatibility).
+
 ## 1.9.0.0
 
 * New type `Doc` for representing documentation comments.

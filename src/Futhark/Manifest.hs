@@ -75,14 +75,14 @@ type Doc = Maybe T.Text
 data Input = Input
   { inputName :: T.Text,
     inputType :: TypeName,
-    inputUnique :: Bool
+    inputConsumed :: Bool
   }
   deriving (Eq, Ord, Show)
 
 -- | Manifest info for an entry point return value.
 data Output = Output
   { outputType :: TypeName,
-    outputUnique :: Bool
+    outputFresh :: Bool
   }
   deriving (Eq, Ord, Show)
 
@@ -341,14 +341,14 @@ instance JSON.ToJSON Manifest where
       onOutput (Output t u) =
         object
           [ ("type", toJSON t),
-            ("unique", toJSON u)
+            ("fresh", toJSON u)
           ]
 
       onInput (Input p t u) =
         object
           [ ("name", toJSON p),
             ("type", toJSON t),
-            ("unique", toJSON u)
+            ("consumed", toJSON u)
           ]
 
       onType (TypeArray t et rank ops) =
@@ -449,11 +449,13 @@ instance JSON.FromJSON EntryPoint where
 
 instance JSON.FromJSON Output where
   parseJSON = JSON.withObject "Output" $ \v ->
-    Output <$> v .: "type" <*> v .: "unique"
+    -- "unique" for backwards compatibility.
+    Output <$> v .: "type" <*> (v .: "fresh" <|> v .: "unique")
 
 instance JSON.FromJSON Input where
   parseJSON = JSON.withObject "Input" $ \v ->
-    Input <$> v .: "name" <*> v .: "type" <*> v .: "unique"
+    -- "unique" for backwards compatibility.
+    Input <$> v .: "name" <*> v .: "type" <*> (v .: "consumed" <|> v .: "unique")
 
 instance JSON.FromJSON Type where
   parseJSON = JSON.withObject "Type" $ \ty -> pArray ty <|> pOpaque ty
