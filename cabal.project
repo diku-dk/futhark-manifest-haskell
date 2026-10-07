@@ -2,3 +2,4 @@ packages: futhark-manifest.cabal
 
 package futhark-manifest
   ghc-options: -j -fwrite-ide-info -hiedir=.hie
+  tests: true
