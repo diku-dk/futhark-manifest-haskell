@@ -106,7 +106,8 @@ data ArrayOps = ArrayOps
     arrayNew :: CFuncName,
     arrayNewRaw :: CFuncName,
     arrayValuesRaw :: CFuncName,
-    arrayIndex :: CFuncName
+    arrayIndex :: CFuncName,
+    arraySet :: CFuncName
   }
   deriving (Eq, Ord, Show)
 
@@ -241,7 +242,7 @@ data Manifest = Manifest
   deriving (Eq, Ord, Show)
 
 instance JSON.ToJSON ArrayOps where
-  toJSON (ArrayOps {arrayFree, arrayShape, arrayValues, arrayNew, arrayNewRaw, arrayValuesRaw, arrayIndex}) =
+  toJSON (ArrayOps {arrayFree, arrayShape, arrayValues, arrayNew, arrayNewRaw, arrayValuesRaw, arrayIndex, arraySet}) =
     object
       [ ("free", toJSON arrayFree),
         ("shape", toJSON arrayShape),
@@ -249,7 +250,8 @@ instance JSON.ToJSON ArrayOps where
         ("new", toJSON arrayNew),
         ("new_raw", toJSON arrayNewRaw),
         ("values_raw", toJSON arrayValuesRaw),
-        ("index", toJSON arrayIndex)
+        ("index", toJSON arrayIndex),
+        ("set", toJSON arraySet)
       ]
 
 instance JSON.ToJSON RecordField where
@@ -387,6 +389,7 @@ instance JSON.FromJSON ArrayOps where
       <*> v .: "new_raw"
       <*> v .: "values_raw"
       <*> v .: "index"
+      <*> v .: "set"
 
 instance JSON.FromJSON RecordField where
   parseJSON = JSON.withObject "RecordField" $ \v ->

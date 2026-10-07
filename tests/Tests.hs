@@ -22,6 +22,7 @@ instance Arbitrary ArrayOps where
       <*> arbitrary
       <*> arbitrary
       <*> arbitrary
+      <*> arbitrary
 
 instance Arbitrary RecordField where
   arbitrary = RecordField <$> arbitrary <*> arbitrary <*> arbitrary

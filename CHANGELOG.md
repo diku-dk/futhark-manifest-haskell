@@ -1,5 +1,9 @@
 # Revision history for futhark-manifest
 
+## 1.11.0.0
+
+* Added `arraySet`.
+
 ## 1.10.0.0
 
 * Replaced `inputUnique` with `inputConsumed`.
